@@ -17,6 +17,8 @@ local InfoMessage = require("ui/widget/infomessage")
 local Button = require("ui/widget/button")
 local HorizontalSpan = require("ui/widget/horizontalspan")
 local VerticalSpan = require("ui/widget/verticalspan")
+local ButtonDialogTitle = require("ui/widget/buttondialogtitle")
+local InputDialog = require("ui/widget/inputdialog")
 local _ = require("gettext")
 
 local Minesweeper = WidgetContainer:extend{
@@ -32,9 +34,8 @@ local DIFFICULTY_MODES = {
 }
 
 local MinesweeperGame = InputContainer:extend{
-    modal = true,
-    viewport_rows = 15,
-    viewport_cols = 15,
+    viewport_rows = 10,
+    viewport_cols = 10,
 }
 
 function MinesweeperGame:init()
@@ -43,15 +44,18 @@ function MinesweeperGame:init()
         h = Screen:getHeight(),
     }
     
-    -- Default to Easy mode
-    self.current_mode = 1
+    -- Set difficulty mode (can be passed in on creation)
+    self.current_mode = self.current_mode or 1
     self:setDifficulty(self.current_mode)
     
-    -- Calculate mine count (35% of total squares)
-    self.mines = math.floor(self.rows * self.cols * 0.35)
+    -- Set mine density (default 30%)
+    self.mine_density = self.mine_density or 30
+    
+    -- Calculate mine count based on density percentage
+    self.mines = math.floor(self.rows * self.cols * self.mine_density / 100)
     
     -- Reserve space for header
-    local header_height = Size.item.height_default * 3 + Size.padding.large * 3
+    local header_height = Size.item.height_default * 2 + Size.padding.large * 2
     
     -- Calculate cell size based on viewport, not full grid
     local viewport_rows = math.min(self.viewport_rows, self.rows)
@@ -89,7 +93,7 @@ function MinesweeperGame:init()
         }
     end
     
-    self:initUI()
+    self:buildUI()
 end
 
 function MinesweeperGame:setDifficulty(mode_index)
@@ -235,12 +239,14 @@ end
 
 function MinesweeperGame:getCellText(row, col)
     if self.flagged[row][col] then
-        return "F"
+        return "🚩"
     elseif self.revealed[row][col] then
         if self.board[row][col] == -1 then
-            return "M"
+            return "💣"
         elseif self.board[row][col] > 0 then
             return tostring(self.board[row][col])
+        else
+            return ""
         end
     end
     return ""
@@ -260,12 +266,130 @@ function MinesweeperGame:scroll(d_row, d_col)
     self:refreshUI()
 end
 
-function MinesweeperGame:initUI()
+function MinesweeperGame:showNewGameDialog()
+    local input_dialog
+    input_dialog = InputDialog:new{
+        title = _("New Game"),
+        input = tostring(self.mine_density),
+        input_hint = "30",
+        input_type = "number",
+        description = _("Mine density percentage (1-99):"),
+        buttons = {
+            {
+                {
+                    text = _("Cancel"),
+                    id = "close",
+                    callback = function()
+                        UIManager:close(input_dialog)
+                    end,
+                },
+            },
+            {
+                {
+                    text = DIFFICULTY_MODES[1].name,
+                    callback = function()
+                        local density = tonumber(input_dialog:getInputText())
+                        if not density or density < 1 or density > 99 then
+                            UIManager:show(InfoMessage:new{
+                                text = _("Please enter a number between 1 and 99"),
+                            })
+                            return
+                        end
+                        UIManager:close(input_dialog)
+                        if 1 == self.current_mode and density == self.mine_density then
+                            self:newGame()
+                            self:refreshUI()
+                        else
+                            UIManager:close(self)
+                            UIManager:show(MinesweeperGame:new{
+                                current_mode = 1,
+                                mine_density = density,
+                            })
+                        end
+                    end,
+                },
+                {
+                    text = DIFFICULTY_MODES[2].name,
+                    callback = function()
+                        local density = tonumber(input_dialog:getInputText())
+                        if not density or density < 1 or density > 99 then
+                            UIManager:show(InfoMessage:new{
+                                text = _("Please enter a number between 1 and 99"),
+                            })
+                            return
+                        end
+                        UIManager:close(input_dialog)
+                        if 2 == self.current_mode and density == self.mine_density then
+                            self:newGame()
+                            self:refreshUI()
+                        else
+                            UIManager:close(self)
+                            UIManager:show(MinesweeperGame:new{
+                                current_mode = 2,
+                                mine_density = density,
+                            })
+                        end
+                    end,
+                },
+            },
+            {
+                {
+                    text = DIFFICULTY_MODES[3].name,
+                    callback = function()
+                        local density = tonumber(input_dialog:getInputText())
+                        if not density or density < 1 or density > 99 then
+                            UIManager:show(InfoMessage:new{
+                                text = _("Please enter a number between 1 and 99"),
+                            })
+                            return
+                        end
+                        UIManager:close(input_dialog)
+                        if 3 == self.current_mode and density == self.mine_density then
+                            self:newGame()
+                            self:refreshUI()
+                        else
+                            UIManager:close(self)
+                            UIManager:show(MinesweeperGame:new{
+                                current_mode = 3,
+                                mine_density = density,
+                            })
+                        end
+                    end,
+                },
+                {
+                    text = DIFFICULTY_MODES[4].name,
+                    callback = function()
+                        local density = tonumber(input_dialog:getInputText())
+                        if not density or density < 1 or density > 99 then
+                            UIManager:show(InfoMessage:new{
+                                text = _("Please enter a number between 1 and 99"),
+                            })
+                            return
+                        end
+                        UIManager:close(input_dialog)
+                        if 4 == self.current_mode and density == self.mine_density then
+                            self:newGame()
+                            self:refreshUI()
+                        else
+                            UIManager:close(self)
+                            UIManager:show(MinesweeperGame:new{
+                                current_mode = 4,
+                                mine_density = density,
+                            })
+                        end
+                    end,
+                },
+            },
+        },
+    }
+    UIManager:show(input_dialog)
+    input_dialog:onShowKeyboard()
+end
+
+function MinesweeperGame:buildGrid()
     local grid = VerticalGroup:new{
         align = "center",
     }
-    
-    self.cell_widgets = {}
     
     -- Determine actual viewport size
     local viewport_rows = math.min(self.viewport_rows, self.rows)
@@ -273,37 +397,50 @@ function MinesweeperGame:initUI()
     
     for vi = 1, viewport_rows do
         local row_group = HorizontalGroup:new{}
-        self.cell_widgets[vi] = {}
         
         for vj = 1, viewport_cols do
+            local actual_row = self.scroll_row + vi
+            local actual_col = self.scroll_col + vj
+            
+            local cell_text = ""
+            local cell_color = Blitbuffer.COLOR_WHITE
+            
+            if actual_row <= self.rows and actual_col <= self.cols then
+                cell_text = self:getCellText(actual_row, actual_col)
+                cell_color = self:getCellColor(actual_row, actual_col)
+            end
+            
             local cell = FrameContainer:new{
                 width = self.cell_size,
                 height = self.cell_size,
                 padding = 0,
                 margin = 0,
                 bordersize = Size.border.thin,
-                background = Blitbuffer.COLOR_WHITE,
+                background = cell_color,
                 CenterContainer:new{
                     dimen = Geom:new{
                         w = self.cell_size,
                         h = self.cell_size,
                     },
                     TextWidget:new{
-                        text = "",
-                        face = Font:getFace("cfont", math.floor(self.cell_size * 0.5)),
+                        text = cell_text,
+                        face = Font:getFace("cfont", math.max(8, math.floor(self.cell_size * 0.3))),
+                        bold = true,
                     }
                 }
             }
             
-            self.cell_widgets[vi][vj] = cell
             table.insert(row_group, cell)
         end
         
         table.insert(grid, row_group)
     end
     
-    -- Update grid with current data
-    self:updateGrid()
+    return grid
+end
+
+function MinesweeperGame:buildUI()
+    local grid = self:buildGrid()
     
     -- Status text
     local status_text = TextWidget:new{
@@ -311,37 +448,14 @@ function MinesweeperGame:initUI()
         face = Font:getFace("cfont", 14),
     }
     
-    -- Difficulty mode buttons
-    local mode_buttons = HorizontalGroup:new{
-        align = "center",
-    }
+    -- Calculate scroll boundaries
+    local max_scroll_row = math.max(0, self.rows - self.viewport_rows)
+    local max_scroll_col = math.max(0, self.cols - self.viewport_cols)
     
-    for i, mode in ipairs(DIFFICULTY_MODES) do
-        if i > 1 then
-            table.insert(mode_buttons, HorizontalSpan:new{width = Size.span.horizontal_default})
-        end
-        
-        table.insert(mode_buttons, Button:new{
-            text = mode.name,
-            padding = Size.padding.small,
-            enabled = self.current_mode ~= i,
-            callback = function()
-                self:setDifficulty(i)
-                self.mines = math.floor(self.rows * self.cols * 0.35)
-                self:newGame()
-                UIManager:close(self)
-                UIManager:show(MinesweeperGame:new{})
-            end,
-        })
-    end
-    
-    local mode_container = CenterContainer:new{
-        dimen = Geom:new{
-            w = self.dimen.w,
-            h = Size.item.height_default,
-        },
-        mode_buttons,
-    }
+    local can_scroll_up = self.scroll_row > 0
+    local can_scroll_down = self.scroll_row < max_scroll_row
+    local can_scroll_left = self.scroll_col > 0
+    local can_scroll_right = self.scroll_col < max_scroll_col
     
     -- Control buttons
     local button_container = CenterContainer:new{
@@ -354,6 +468,7 @@ function MinesweeperGame:initUI()
             Button:new{
                 text = "^",
                 padding = Size.padding.small,
+                enabled = can_scroll_up,
                 callback = function()
                     self:scroll(-3, 0)
                 end,
@@ -362,6 +477,7 @@ function MinesweeperGame:initUI()
             Button:new{
                 text = "v",
                 padding = Size.padding.small,
+                enabled = can_scroll_down,
                 callback = function()
                     self:scroll(3, 0)
                 end,
@@ -370,6 +486,7 @@ function MinesweeperGame:initUI()
             Button:new{
                 text = "<",
                 padding = Size.padding.small,
+                enabled = can_scroll_left,
                 callback = function()
                     self:scroll(0, -3)
                 end,
@@ -378,6 +495,7 @@ function MinesweeperGame:initUI()
             Button:new{
                 text = ">",
                 padding = Size.padding.small,
+                enabled = can_scroll_right,
                 callback = function()
                     self:scroll(0, 3)
                 end,
@@ -387,8 +505,7 @@ function MinesweeperGame:initUI()
                 text = _("New"),
                 padding = Size.padding.small,
                 callback = function()
-                    self:newGame()
-                    self:refreshUI()
+                    self:showNewGameDialog()
                 end,
             },
             HorizontalSpan:new{width = Size.span.horizontal_default},
@@ -402,8 +519,6 @@ function MinesweeperGame:initUI()
         }
     }
     
-    self.status_widget = status_text
-    
     self[1] = CenterContainer:new{
         dimen = self.dimen,
         FrameContainer:new{
@@ -412,8 +527,6 @@ function MinesweeperGame:initUI()
             padding = Size.padding.large,
             VerticalGroup:new{
                 align = "center",
-                mode_container,
-                VerticalSpan:new{width = Size.span.vertical_default},
                 button_container,
                 VerticalSpan:new{width = Size.span.vertical_default},
                 status_text,
@@ -426,36 +539,18 @@ end
 
 function MinesweeperGame:getStatusText()
     local mode_name = DIFFICULTY_MODES[self.current_mode].name
-    return string.format(_("%s | Mines: %d | Flags: %d | View: %d,%d"), 
-        mode_name, self.mines, self.flags_placed, self.scroll_row + 1, self.scroll_col + 1)
-end
-
-function MinesweeperGame:updateGrid()
-    local viewport_rows = math.min(self.viewport_rows, self.rows)
-    local viewport_cols = math.min(self.viewport_cols, self.cols)
-    
-    for vi = 1, viewport_rows do
-        for vj = 1, viewport_cols do
-            local actual_row = self.scroll_row + vi
-            local actual_col = self.scroll_col + vj
-            
-            if actual_row <= self.rows and actual_col <= self.cols then
-                local cell = self.cell_widgets[vi][vj]
-                cell.background = self:getCellColor(actual_row, actual_col)
-                cell[1][1].text = self:getCellText(actual_row, actual_col)
-            end
-        end
-    end
+    return string.format(_("%s | Density: %d%% | Mines: %d | Flags: %d | View: %d,%d"), 
+        mode_name, self.mine_density, self.mines, self.flags_placed, self.scroll_row + 1, self.scroll_col + 1)
 end
 
 function MinesweeperGame:refreshUI()
-    self:updateGrid()
-    self.status_widget.text = self:getStatusText()
+    -- Rebuild the entire UI
+    self:buildUI()
     UIManager:setDirty(self, "ui")
 end
 
 function MinesweeperGame:getCellFromPosition(pos)
-    local header_height = Size.item.height_default * 3 + Size.padding.large * 3 + Size.span.vertical_default * 3
+    local header_height = Size.item.height_default * 2 + Size.padding.large * 2 + Size.span.vertical_default * 2
     
     local viewport_rows = math.min(self.viewport_rows, self.rows)
     local viewport_cols = math.min(self.viewport_cols, self.cols)
